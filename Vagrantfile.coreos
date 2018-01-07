@@ -1,0 +1,54 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# required vagrant plugins
+# - vagrant-rsync-back
+# - vagrant-gatling-rsync
+# - vagrant-winnfsd
+
+Vagrant.configure(2) do |config|
+  config.vm.box = "docker_coreos"
+  config.vm.box_url = "https://stable.release.core-os.net/amd64-usr/1409.6.0/coreos_production_vagrant.box"
+
+  config.ssh.insert_key = false
+
+  config.ssh.forward_agent = true
+
+  if Vagrant.has_plugin?("vagrant-vbguest") then
+    config.vbguest.auto_update = false
+  end
+
+  config.vm.network "private_network", ip: "10.10.10.110"
+  # config.vm.network "public_network"
+
+  if Vagrant.has_plugin?("vagrant-notify-forwarder") then
+    config.notify_forwarder.port = 22020
+  end
+
+  config.vm.synced_folder ".", "/vagrant", nfs: true, mount_options: ['nolock,vers=3,udp']
+
+  config.vm.provider "virtualbox" do |vb|
+    # Display the VirtualBox GUI when booting the machine
+    vb.gui = false
+
+    # Customize the amount of memory on the VM:
+    vb.cpus = 2
+    vb.memory = "4096"
+    vb.customize ["modifyvm", :id, "--ioapic", "on"]
+    vb.customize ["modifyvm", :id, "--memory", 4096]
+  end
+
+  config.vm.provision "shell", inline: <<-EOC
+    sudo mkdir -p /opt/bin
+    curl -L https://github.com/docker/compose/releases/download/1.14.0/docker-compose-`uname -s`-`uname -m` > /opt/bin/docker-compose
+    sudo chmod +x /opt/bin/docker-compose
+
+    cp $(readlink .bashrc) .bashrc.new && mv .bashrc.new .bashrc
+
+    # Increase HTTP timeout of Docker Compose
+    echo "export COMPOSE_HTTP_TIMEOUT=1800" >> .bashrc
+    echo "cd /vagrant" >> .bashrc
+
+  EOC
+
+end

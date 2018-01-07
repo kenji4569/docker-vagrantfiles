@@ -1,0 +1,110 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# required vagrant plugins
+# - vagrant-rsync-back
+# - vagrant-gatling-rsync
+
+Vagrant.configure(2) do |config|
+  config.vm.box = "docker_ubuntu"
+  config.vm.box_url = "https://atlas.hashicorp.com/puppetlabs/boxes/ubuntu-16.04-64-puppet/versions/1.0.0/providers/virtualbox.box"
+
+  config.ssh.insert_key = false
+
+  config.ssh.forward_agent = true
+
+  if Vagrant.has_plugin?("vagrant-vbguest") then
+    config.vbguest.auto_update = true
+  end
+
+  config.vm.network "private_network", ip: "10.10.10.110"
+  # config.vm.network "public_network"
+
+  if Vagrant.has_plugin?("vagrant-notify-forwarder") then
+    config.notify_forwarder.port = 22020
+  end
+
+  config.vm.synced_folder ".", "/vagrant", mount_options: ["dmode=777,fmode=777"], type: "virtualbox"
+
+  config.vm.provider "virtualbox" do |vb|
+    # Display the VirtualBox GUI when booting the machine
+    vb.gui = false
+
+    # Customize the amount of memory on the VM:
+    vb.cpus = 2
+    vb.memory = "4096"
+    vb.customize ["modifyvm", :id, "--ioapic", "on"]
+    vb.customize ["modifyvm", :id, "--memory", 4096]
+  end
+
+  # https://github.com/Varying-Vagrant-Vagrants/VVV/issues/694
+  $enable_serial_logging = false
+
+  config.vm.provision "shell", inline: <<-EOC
+curl --remote-name --location https://apt.puppetlabs.com/DEB-GPG-KEY-puppet
+gpg --keyid-format 0xLONG --with-fingerprint ./DEB-GPG-KEY-puppet
+sudo apt-key add DEB-GPG-KEY-puppet
+rm -f DEB-GPG-KEY-puppet
+
+sudo apt-get install -y git apt-transport-https ca-certificates software-properties-common vim
+
+# Make more swap space to prevent OOM killer
+sudo fallocate -l 1G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+sudo apt-key fingerprint 0EBFCD88
+sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+sudo apt-get update
+sudo apt-get install -y docker-ce
+
+sudo groupadd docker
+sudo usermod -aG docker vagrant
+
+curl -L https://github.com/docker/compose/releases/download/1.14.0/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose
+chmod +x /usr/local/bin/docker-compose
+
+sudo systemctl enable docker
+sudo service docker start
+
+# Set storage driver to overlay2
+cat <<-'EOF_DOCKER_DAEMON' > /etc/docker/daemon.json
+{
+  "storage-driver": "overlay2"
+}
+EOF_DOCKER_DAEMON
+
+sudo service docker restart
+
+# Enable packet forwarding for IPv4
+sudo sysctl -w net.ipv4.ip_forward=1
+sudo sed -i 's/#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/g' /etc/sysctl.conf
+
+# Install docker-bench-security (https://github.com/docker/docker-bench-security)
+docker pull docker/docker-bench-security
+cat <<-'EOF_BENCH_SECURITY' > /usr/local/bin/docker-bench-security
+#!/bin/sh
+
+exec docker run -it --net host --pid host --cap-add audit_control \
+  -e DOCKER_CONTENT_TRUST=$DOCKER_CONTENT_TRUST \
+  -v /var/lib:/var/lib \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v /usr/lib/systemd:/usr/lib/systemd \
+  -v /etc:/etc --label docker_bench_security \
+  docker/docker-bench-security
+
+EOF_BENCH_SECURITY
+chmod a+x /usr/local/bin/docker-bench-security
+
+# Install ctop (https://github.com/bcicen/ctop)
+sudo wget https://github.com/bcicen/ctop/releases/download/v0.6.1/ctop-0.6.1-linux-amd64 -O /usr/local/bin/ctop
+sudo chmod a+x /usr/local/bin/ctop
+
+# Increase HTTP timeout of Docker Compose
+echo "export COMPOSE_HTTP_TIMEOUT=1800" >> /home/vagrant/.bashrc
+echo "cd /vagrant" >> /home/vagrant/.bashrc
+  EOC
+
+end

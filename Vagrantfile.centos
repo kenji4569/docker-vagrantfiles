@@ -1,0 +1,115 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# required vagrant plugins
+# - vagrant-rsync-back
+# - vagrant-gatling-rsync
+
+Vagrant.configure(2) do |config|
+  config.vm.box = "docker_centos"
+  config.vm.box_url = "https://atlas.hashicorp.com/puppetlabs/boxes/centos-7.2-64-puppet/versions/1.0.1/providers/virtualbox.box"
+
+  config.ssh.insert_key = false
+
+  config.ssh.forward_agent = true
+
+  if Vagrant.has_plugin?("vagrant-vbguest") then
+    config.vbguest.auto_update = true
+  end
+
+  config.vm.network "private_network", ip: "10.10.10.110"
+  # config.vm.network "public_network"
+
+  if Vagrant.has_plugin?("vagrant-notify-forwarder") then
+    config.notify_forwarder.port = 22020
+  end
+
+  config.vm.synced_folder ".", "/vagrant", mount_options: ["dmode=777,fmode=777"], type: "virtualbox"
+
+  config.vm.provider "virtualbox" do |vb|
+    # Display the VirtualBox GUI when booting the machine
+    vb.gui = false
+
+    # Customize the amount of memory on the VM:
+    vb.cpus = 2
+    vb.memory = "4096"
+    vb.customize ["modifyvm", :id, "--ioapic", "on"]
+    vb.customize ["modifyvm", :id, "--memory", 4096]
+  end
+
+  config.vm.provision "shell", inline: <<-EOS
+
+curl --remote-name --location https://yum.puppetlabs.com/RPM-GPG-KEY-puppet
+gpg --keyid-format 0xLONG --with-fingerprint ./RPM-GPG-KEY-puppet
+rpm --import RPM-GPG-KEY-puppet
+rm -f RPM-GPG-KEY-puppet
+
+yum install -y deltarpm
+
+yum install -y epel-release
+
+yum groups mark install "Development Tools"
+yum groups mark convert "Development Tools"
+yum groupinstall "Development Tools"
+
+yum -y update
+
+yum -y install git
+
+cat <<-'EOF' >/etc/yum.repos.d/docker.repo
+[dockerrepo]
+name=Docker Repository
+baseurl=https://yum.dockerproject.org/repo/main/centos/7
+enabled=1
+gpgcheck=1
+gpgkey=https://yum.dockerproject.org/gpg
+EOF
+
+yum -y install docker-engine-1.12.6
+sudo service docker start
+sudo systemctl enable docker
+
+sudo groupadd docker
+sudo usermod -aG docker vagrant
+
+curl -L https://github.com/docker/compose/releases/download/1.14.0/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose
+chmod +x /usr/local/bin/docker-compose
+
+yum install -y kernel-devel kernel-headers dkms gcc gcc-c++
+if [ -f "/etc/init.d/vboxadd" ]; then
+  /etc/init.d/vboxadd setup
+fi
+
+# Enable packet forwarding for IPv4
+sudo sysctl -w net.ipv4.ip_forward=1
+cat <<-'EOF_IPF' >> /etc/sysctl.conf
+net.ipv4.ip_forward=1
+EOF_IPF
+
+# Install docker-bench-security (https://github.com/docker/docker-bench-security)
+docker pull docker/docker-bench-security
+cat <<-'EOF_BENCH_SECURITY' > /usr/local/bin/docker-bench-security
+#!/bin/sh
+
+exec docker run -it --net host --pid host --cap-add audit_control \
+  -e DOCKER_CONTENT_TRUST=$DOCKER_CONTENT_TRUST \
+  -v /var/lib:/var/lib \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v /usr/lib/systemd:/usr/lib/systemd \
+  -v /etc:/etc --label docker_bench_security \
+  docker/docker-bench-security
+
+EOF_BENCH_SECURITY
+chmod a+x /usr/local/bin/docker-bench-security
+
+# Install ctop (https://github.com/bcicen/ctop)
+sudo wget https://github.com/bcicen/ctop/releases/download/v0.6.1/ctop-0.6.1-linux-amd64 -O /usr/local/bin/ctop
+sudo chmod a+x /usr/local/bin/ctop
+
+# Increase HTTP timeout of Docker Compose
+echo "export COMPOSE_HTTP_TIMEOUT=1800" >> /home/vagrant/.bashrc
+echo "cd /vagrant" >> /home/vagrant/.bashrc
+
+  EOS
+
+end
