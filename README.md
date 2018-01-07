@@ -4,7 +4,7 @@ This project provides Vagrantfiles to use Docker and Docker Compose on a specifi
 
 In the beginning, please install [VirtualBox](https://www.virtualbox.org/) and [Vagrant](https://www.vagrantup.com/).
 
-## Run VM with Vagrant
+## Build and Run
 
 Copy a sample Vagrantfile for a specific OS:
 
@@ -21,29 +21,37 @@ Start the virtual machine:
 vagrant up
 ```
 
-For Mac users, please install the following plugin for file notification:
-
-```
-vagrant plugin install vagrant-notify-forwarder
-```
-
 For the first time, the following error may occur
-`/sbin/mount.vboxsf: mounting failed with the error: No such device`
+`/sbin/mount.vboxsf: mounting failed with the error: No such device`.
 In that case, please enter the following command for that shared folder problem:
 
 ```
 vagrant plugin install vagrant-vbguest
 vagrant vbguest
-```
-
-Update the plugin settings:
-
-```
 vagrant reload
-````
+```
 
-Log in to the virtual machine:
+(If you got any shared folder probelms, please retry the above command.)
+
+For Mac users, please install the following plugin for file notification:
+
+```
+vagrant plugin install vagrant-notify-forwarder
+vagrant reload
+```
+
+(Currently Windows would not support file notification)
+
+## Login
+
+Login to the virtual machine by the following command:
 
 ```
 vagrant ssh
+```
+
+Check the shared folder worked:
+
+```
+ls -l
 ```
