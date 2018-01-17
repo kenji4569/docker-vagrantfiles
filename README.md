@@ -75,7 +75,7 @@ $ vi /etc/hosts # For mac / linux
 10.10.10.110    vm1.local
 ```
 
-Now, you can access 'vm1.local' for '10.10.10.110' to access the VM.
+Now, you can access `vm1.local` for `10.10.10.110` to access the VM.
 
 ### Git SSH key
 
