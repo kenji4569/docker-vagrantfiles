@@ -82,22 +82,22 @@ Now, you can access `vm1.local` for `10.10.10.110` to access the VM.
 To download git repositories on the VM, you may have to set a SSH private key in `~/.ssh` directory.
 
 ```
-cp your_ssh_private_key ~/.ssh/id_rsa
-chmod 600 ~/.ssh/id_rsa # You should change the permission to `600` for ssh keys
+$ cp your_ssh_private_key ~/.ssh/id_rsa
+$ chmod 600 ~/.ssh/id_rsa # You should change the permission to `600` for ssh keys
 ```
 
-If you already have a private key in your local (outside of the VM),
+If you already have a private key in your local outside of the VM,
 `ssh-add` command can just copy it to the VM from the local.
 
 ```sh
-ssh-add ~/.ssh/id_rsa # copy from outside of the VM
+$ ssh-add ~/.ssh/id_rsa # copy the ssh key from your local outside of the VM
 ```
 
 If you have no ssh key, just generate it by `ssh-keygen` and register the public key to the target Git system.
 
 ```sh
-ssh-keygen
-cat ~/.ssh/id_rsa.pub # register the public key to the target Git system
+$ ssh-keygen
+$ cat ~/.ssh/id_rsa.pub # register the public key to the target Git system
 ```
 
 ### Vagrant basic commands
