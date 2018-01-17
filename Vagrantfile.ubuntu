@@ -105,6 +105,10 @@ sudo chmod a+x /usr/local/bin/ctop
 # Increase HTTP timeout of Docker Compose
 echo "export COMPOSE_HTTP_TIMEOUT=1800" >> /home/vagrant/.bashrc
 echo "cd /vagrant" >> /home/vagrant/.bashrc
+
+# Pre-create directory for Docker persistent data
+sudo mkdir /data
+sudo chown -R vagrant /data
   EOC
 
 end
