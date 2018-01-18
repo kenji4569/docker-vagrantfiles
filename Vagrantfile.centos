@@ -52,27 +52,25 @@ yum groups mark install "Development Tools"
 yum groups mark convert "Development Tools"
 yum groupinstall "Development Tools"
 
+yum install -y yum-utils \
+  device-mapper-persistent-data \
+  lvm2
+
+yum-config-manager \
+  --add-repo \
+  https://download.docker.com/linux/centos/docker-ce.repo
+
 yum -y update
 
-yum -y install git
+yum -y install git docker-ce
 
-cat <<-'EOF' >/etc/yum.repos.d/docker.repo
-[dockerrepo]
-name=Docker Repository
-baseurl=https://yum.dockerproject.org/repo/main/centos/7
-enabled=1
-gpgcheck=1
-gpgkey=https://yum.dockerproject.org/gpg
-EOF
-
-yum -y install docker-engine-1.12.6
-sudo service docker start
+sudo systemctl start docker
 sudo systemctl enable docker
 
 sudo groupadd docker
 sudo usermod -aG docker vagrant
 
-curl -L https://github.com/docker/compose/releases/download/1.14.0/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose
+curl -L https://github.com/docker/compose/releases/download/1.18.0/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose
 chmod +x /usr/local/bin/docker-compose
 
 yum install -y kernel-devel kernel-headers dkms gcc gcc-c++
@@ -103,13 +101,16 @@ EOF_BENCH_SECURITY
 chmod a+x /usr/local/bin/docker-bench-security
 
 # Install ctop (https://github.com/bcicen/ctop)
-sudo wget https://github.com/bcicen/ctop/releases/download/v0.6.1/ctop-0.6.1-linux-amd64 -O /usr/local/bin/ctop
+sudo wget https://github.com/bcicen/ctop/releases/download/v0.7/ctop-0.7-linux-amd64 -O /usr/local/bin/ctop
 sudo chmod a+x /usr/local/bin/ctop
 
 # Increase HTTP timeout of Docker Compose
 echo "export COMPOSE_HTTP_TIMEOUT=1800" >> /home/vagrant/.bashrc
 echo "cd /vagrant" >> /home/vagrant/.bashrc
 
+# Pre-create directory for Docker persistent data
+sudo mkdir /data
+sudo chown -R vagrant /data
   EOS
 
 end
