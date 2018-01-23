@@ -65,6 +65,7 @@ You can check the ip address of the VM which is configured in `config.vm.network
 ```
 $ vagrant ssh
 $ ip addr | grep -E "192\.|10\.10" | awk '{print $2}' | sed 's/\/.*$//'
+$ 10.10.10.110
 ```
 
 It would be convenient for development to set a host name for the VM IP address by [editing hosts file](https://www.howtogeek.com/howto/27350/beginner-geek-how-to-edit-your-hosts-file/).
@@ -77,6 +78,19 @@ $ vi /etc/hosts # For mac / linux
 
 Now, you can access `vm1.local` for `10.10.10.110` to access the VM.
 
+
+If no ip address is shown by the above `ip addr ...` command, something goes wrong in your network.
+An alternative way to expose internal servers is to use port forwarding.
+For example, put the following setting in Vagrantfie
+
+```
+config.vm.network "forwarded_port", guest: 80, host: 10080
+```
+
+then, you can access 80 port on the inside of the VM via `localhost:10080` on the outside of the VM
+
+
+
 ### Git SSH key
 
 To download git repositories on the VM, you may have to set a SSH private key in `~/.ssh` directory.
@@ -86,11 +100,11 @@ $ cp your_ssh_private_key ~/.ssh/id_rsa
 $ chmod 600 ~/.ssh/id_rsa # you should change the permission to `600` for ssh keys
 ```
 
-If you already have a private key in your local outside of the VM,
+If you already have a private key in your local on the outside of the VM,
 `ssh-add` command can just copy it to the VM from the local.
 
 ```
-$ ssh-add ~/.ssh/id_rsa # Copy the ssh key from your local outside of the VM
+$ ssh-add ~/.ssh/id_rsa # Copy the ssh key from your local on the outside of the VM
 ```
 
 If you have no ssh key, just generate it by `ssh-keygen` and register the public key to the target Git system.
